@@ -1,41 +1,42 @@
 
 ## Marketing Models Chapter 5
+install.packages("ggplot2")
+install.packages("xtable")
+install.packages("haven")
+install.packages("sandwich")
+install.packages("margins")
+install.packages("mclogit")
+install.packages("mlogit")
+install.packages("gridExtra")
+install.packages("dfidx")
 
 #load libraries
-install.packages("ggplot2")
 library(ggplot2)
 # see https://github.com/rstudio/cheatsheets/blob/main/data-visualization-2.1.pdf
 
-install.packages("xtable")
 library(xtable)
 
 
 #load packages
-install.packages("haven")
 library(haven) # for reading the dta file
-install.packages("sandwich")
 library(sandwich) # for robust Poisson model standard errors
-install.packages("margins")
 library(margins) # for computing the average marginal effects
 #library(DescTools)
 #library(pscl)
-install.packages("mclogit")
 library(mclogit)
-install.packages("mlogit")
 library(mlogit)
 
-install.packages("gridExtra")
 library(gridExtra)
+
+library("dfidx")
 
 ##### Load data, Histograms ###################################
 
 #read the data
 ch5data <- read.csv(file = "CHAPTER5.csv")
-
 ch5data2 <- ch5data[, c(4:ncol(ch5data))]
 
 #convert to conditional logit format
-
 colnames(ch5data2)  <- c("PRIVATE",
                             "SUNSHINE",
                             "KEEBLER",
@@ -61,9 +62,7 @@ colnames(ch5data2)  <- c("PRIVATE",
                             #"LASTPURCHASE"
                          )
 
-
-
-choices_binary <- as.matrix(ch5data2[ ,  c(1:4) ])
+choices_binary <- as.matrix(ch5data2[, c(1:4)])
 
 ch5df <- as.data.frame(ch5data2)
 ch5df$brand_f <-  as.factor(colnames(choices_binary)[choices_binary %*% 1:ncol(choices_binary)])
@@ -128,7 +127,7 @@ rownames(datachar) <- c("Choice percentage",
 #Slide 14
 
 #x-values
-xtemp <- seq(from= -5, to = 5, by = 0.05)
+xtemp <- seq(from = -5, to = 5, by = 0.05)
 
 b01 <- -1
 b02 <- 1
@@ -213,22 +212,16 @@ ggplot(data = MNLdataall, aes(y = y, x= x1, group = params, shape = params, colo
 ##### Conditional Logit Model for Probability of Purchasing Saltine Cracker Brand ####################################################################
 
 
-
-
 #read the data
-ch5data <- read.csv(file = "C:/Users/77029eon/OneDrive - Erasmus University Rotterdam/Teaching/marketing_models/textbook_data_Rcode_2022/ch5/chap5xls/CHAPTER5.csv")
+ch5data <- read.csv(file = "CHAPTER5.csv")
 
-
-training_data <- ch5data[ch5data$LASTPURCHASE ==0,]
-test_data <- ch5data[ch5data$LASTPURCHASE ==1,]
+training_data <- ch5data[ch5data$LASTPURCHASE == 0, ]
+test_data <- ch5data[ch5data$LASTPURCHASE == 1, ]
 
 training_data <- training_data[, c(4:ncol(training_data))]
-
 test_data <- test_data[, c(4:ncol(test_data))]
 
-
 #convert to conditional logit format
-
 colnames(training_data)  <- c("PRIVATE",
                          "SUNSHINE",
                          "KEEBLER",
@@ -254,22 +247,17 @@ colnames(training_data)  <- c("PRIVATE",
                          #"LASTPURCHASE"
 )
 
-
-
-choices_binary <- as.matrix(training_data[ ,  c(1:4) ])
+choices_binary <- as.matrix(training_data[, c(1:4)])
 
 training_datadf <- as.data.frame(training_data)
 training_datadf$brand_f <-  as.factor(colnames(choices_binary)[choices_binary %*% 1:ncol(choices_binary)])
 training_datadf$obs_id <- 1:nrow(training_datadf)
 
-
-training_data_for_CL <- dfidx(data = training_datadf[5:ncol(training_datadf)], 
-                        shape = "wide", 
-                        varying = 1:16, 
-                        sep = "_",  
-                        choice = "brand_f" )
-
-
+training_data_for_CL <- dfidx(data = training_datadf[5:ncol(training_datadf)],
+                        shape = "wide",
+                        varying = 1:16,
+                        sep = "_",
+                        choice = "brand_f")
 
 
 colnames(test_data)  <- c("PRIVATE",
@@ -297,28 +285,23 @@ colnames(test_data)  <- c("PRIVATE",
                               #"LASTPURCHASE"
 )
 
-
-
-choices_binary <- as.matrix(test_data[ ,  c(1:4) ])
+choices_binary <- as.matrix(test_data[, c(1:4)])
 
 test_datadf <- as.data.frame(test_data)
 test_datadf$brand_f <-  as.factor(colnames(choices_binary)[choices_binary %*% 1:ncol(choices_binary)])
 test_datadf$obs_id <- 1:nrow(test_datadf)
 
-
-test_data_for_CL <- dfidx(data = test_datadf[5:ncol(test_datadf)], 
-                              shape = "wide", 
-                              varying = 1:16, 
-                              sep = "_",  
-                              choice = "brand_f" )
-
-
+test_data_for_CL <- dfidx(data = test_datadf[5:ncol(test_datadf)],
+                              shape = "wide",
+                              varying = 1:16,
+                              sep = "_",
+                              choice = "brand_f")
 
 
 summary(m1 <-
           mlogit(
             brand_f ~ PRICE  + DISPL  + FEAT + FEATDISPL,
-            data=training_data_for_CL
+            data = training_data_for_CL
           )
 )
 
@@ -328,8 +311,8 @@ tempcoeffmat <- sum_m1$CoefTable
 
 
 cbind(c("Variables", rownames(tempcoeffmat)),
-      c("Parameter", tempcoeffmat[,1]),
-      c("Std. Err.", tempcoeffmat[,2])
+      c("Parameter", tempcoeffmat[, 1]),
+      c("Std. Err.", tempcoeffmat[, 2])
       )
 
 
@@ -348,7 +331,7 @@ logLik(m1)[1]
 McFR2_2 <- sum_m1$mfR2[1]
 
 
-################ Prediction-Realization Table #############################################
+################ Prediction-Realization Table ##################################
 
 
 training_predprobs <- predict(m1,training_data_for_CL )
