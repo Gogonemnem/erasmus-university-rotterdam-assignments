@@ -33,6 +33,6 @@ logLik(m1)[1]
 #McFadden R-squared
 mc_f_r2 <- sum_m1$mfR2[1]
 
-
+# partial effects
 marg1 <- effects(m1, covariate = "price")
 marg2 <- effects(m1, covariate = "dis")
