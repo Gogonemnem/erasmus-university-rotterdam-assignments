@@ -211,7 +211,7 @@ ggplot(data = MNLdataall, aes(y = y, x= x1, group = params, shape = params, colo
 
 ##### Conditional Logit Model for Probability of Purchasing Saltine Cracker Brand ####################################################################
 
-
+library(mlogit)
 #read the data
 ch5data <- read.csv(file = "CHAPTER5.csv")
 
@@ -578,7 +578,9 @@ plot_private <- ggplot(data = CLdataall, aes(y = y, x= x1, group = params, shape
   colnames(par_effect_mat_price0) <- colnames(marg1)
   rownames(par_effect_mat_price0) <- rownames(marg1)
   
+  print(length(unique(training_data_for_CL$idx$id1)))
   for(i in 1:length(unique(training_data_for_CL$idx$id1))){
+    print(i)
     z <- data.frame(PRICE = training_data_for_CL[ training_data_for_CL$idx$id1 == i , "PRICE" ],
                     DISPL = training_data_for_CL[ training_data_for_CL$idx$id1 == i , "DISPL" ],
                     FEAT = training_data_for_CL[ training_data_for_CL$idx$id1 == i , "FEAT" ],
@@ -614,10 +616,10 @@ plot_private <- ggplot(data = CLdataall, aes(y = y, x= x1, group = params, shape
 
   ################# average effect of display promotion #####################################
   
-
+idx(training_data_for_CL_new0, 2) %in% c("KEEBLER", "NABISCO", "PRIVATE")
   
   training_data_for_CL_new0 <- training_data_for_CL
-  
+  training_data_for_CL_new0[idx(training_data_for_CL_new0, 2) == "KEEBLER", c("DISPL", "FEAT", "FEATDISPL")] <- 0
   training_data_for_CL_new0[idx(training_data_for_CL_new0, 2) == "KEEBLER", "DISPL"] <-  0
   training_data_for_CL_new0[idx(training_data_for_CL_new0, 2) == "KEEBLER", "FEAT"] <-  0
   training_data_for_CL_new0[idx(training_data_for_CL_new0, 2) == "KEEBLER", "FEATDISPL"] <-  0
