@@ -60,7 +60,8 @@ create_answer_csv <- function(number) {
 
     # partial effects display hunts conditional
     fake_scenario <- data_for_cl
-    fake_scenario[idx(fake_scenario, 2) %in% c("Heinz40", "Heinz32", "Heinz28"),
+    fake_scenario[idx(fake_scenario, 2) %in%
+                    c("Heinz40", "Heinz32", "Heinz28", "Hunts32"),
                     c("dis", "feature")] <- 0
 
     fake_scenario1 <- fake_scenario
