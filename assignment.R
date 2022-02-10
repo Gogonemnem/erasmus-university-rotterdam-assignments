@@ -60,15 +60,13 @@ create_answer_csv <- function(number) {
 
     # partial effects display hunts conditional
     fake_scenario <- data_for_cl
-    fake_scenario[idx(fake_scenario, 2) %in%
-                    c("Heinz40", "Heinz32", "Heinz28", "Hunts32"),
-                    c("dis", "feature")] <- 0
+    fake_scenario[, c("dis", "feature")] <- 0
 
     fake_scenario1 <- fake_scenario
     fake_scenario1[idx(fake_scenario1, 2) == "Hunts32", "dis"] <-  1
 
     hunts_dis_effect <- colMeans(predict(m1, newdata = fake_scenario1) -
-                                predict(m1, newdata = fake_scenario))
+                                 predict(m1, newdata = fake_scenario))
 
     # Hausman
     m2 <- mlogit(brandsize_f ~ price + dis + feature,
@@ -96,4 +94,5 @@ create_answer_csv <- function(number) {
     write.csv(ans, paste("./answers/dataset", number, ".csv", sep = ""))
 }
 
-create_all_answer_csv(99)
+create_answer_csv("02")
+# create_all_answer_csv(99)

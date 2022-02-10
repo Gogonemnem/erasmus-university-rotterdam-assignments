@@ -40,5 +40,6 @@ def fill_all(max):
         fill(padding % (i,))
 
 
-fill_all(99)
+fill("02")
+# fill_all(99)
 
