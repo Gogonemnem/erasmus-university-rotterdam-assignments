@@ -1,9 +1,11 @@
-import os
-data_folder_path = "./data"
+from itertools import product
 
 import pandas as pd
 
-def load_data():
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.model_selection import StratifiedKFold
+
+def load_data(data_folder_path='./data'):
     df_train = pd.read_csv(f'{data_folder_path}/train.csv', delimiter=';', decimal=",")
     x_train = df_train.iloc[:,1:]
     y_train = df_train['target']
@@ -11,7 +13,27 @@ def load_data():
     x_test = pd.read_csv(f'{data_folder_path}/test.csv', delimiter=';', decimal=",")
     return x_train, y_train, x_test
 
-from sklearn.model_selection import StratifiedKFold
+
+def evaluate(true, prediction):
+    return {'accuracy': accuracy_score(true, prediction),
+            'precision': precision_score(true, prediction, average = 'macro', zero_division = 0),
+            'recall': recall_score(true, prediction, average = 'macro'),
+            'f': f1_score(true, prediction, average = 'macro')}
+
+
+def create_H(hyperparameters):
+    keys, values = zip(*hyperparameters.items())
+    for bundle in product(*values):
+        d = dict(zip(keys, bundle))
+        yield d
+
+def get_best(results):
+    best_index = results['accuracy'].idxmax()
+    best = results.iloc[best_index]
+    print(best['accuracy'])
+    print(best['_h'])
+    return best
+
 
 def kfold_cv(X, y, k, H, cv_fun, random_state):
     """
