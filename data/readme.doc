@@ -1,0 +1,47 @@
+The Excel file sales.xls contains the unit sales of 100 brands (7 productcategories, 4 markets, 124 weeks, period 1986-1988). 
+The Excel files price.cls, coupon.xls, displ.xls contains the price of the brands, coupon and display dummies per week. 
+The data are constructed from the ERIM database which contains four markets.
+
+The 100 brands are 
+
+DEL MONTE, HEINZ, HUNTS, REST BRAND catsup market 1 (brand 1-4)
+DEL MONTE, HEINZ, HUNTS, REST BRAND catsup market 2 (brand 5-8)
+DEL MONTE, HEINZ, HUNTS, REST BRAND catsup market 3 (brand 51-54)
+DEL MONTE, HEINZ, HUNTS, REST BRAND catsup market 4 (brand 55-58)
+
+
+JIF,SKIPPY, PETER PAN, REST BRAND peanut butter market 1 (brand 9-12)
+JIF,SKIPPY, PETER PAN, REST BRAND peanut butter market 2 (brand 13-16)
+JIF,SKIPPY, PETER PAN, REST BRAND peanut butter market 3 (brand 59-62)
+JIF,SKIPPY, PETER PAN, REST BRAND peanut butter market 4 (brand 63-66)
+
+ 
+B&B, FLSMN, PKY, REST BRAND margarine stick market 1 (brand 17-20)
+B&B, FLSMN, PKY, REST BRAND margarine stick market 2 (brand 21-24)
+B&B, FLSMN, PKY, REST BRAND margarine stick market 3 (brand 67-70)
+B&B, FLSMN, PKY, REST BRAND margarine stick market 4 (brand 71-74)
+ 
+CH, REST BRAND sugar market 1 (brand 25-26)
+CH, REST BRAND sugar market 2 (brand 27-28)
+CH, REST BRAND sugar market 3 (brand 75-76)
+CH, REST BRAND sugar market 4 (brand 77-78)
+
+CHRMN, NRTHRN, REST BRAND, SCOTT toilet tissue market 1 (brand 29-32)
+CHRMN, NRTHRN, REST BRAND, SCOTT toilet tissue market 2 (brand 33-36)
+CHRMN, NRTHRN, REST BRAND, SCOTT toilet tissue market 3 (brand 79-82)
+CHRMN, NRTHRN, REST BRAND, SCOTT toilet tissue market 4 (brand 83-86)
+
+
+B&B, FLSMN, PKY, REST BRAND margarine tube market 1 (brand 37-40)
+B&B, FLSMN, PKY, REST BRAND margarine tube market 2 (brand 41-44)
+B&B, FLSMN, PKY, REST BRAND margarine tube market 3 (brand 87-90)
+B&B, FLSMN, PKY, REST BRAND margarine tube market 4 (brand 91-94)
+
+
+CHICKEN OF THE SEA, REST BRAND, STARKIST market 1 (brand 45-47)
+CHICKEN OF THE SEA, REST BRAND, STARKIST market 2 (brand 48-50)
+CHICKEN OF THE SEA, REST BRAND, STARKIST market 3 (brand 95-97)
+CHICKEN OF THE SEA, REST BRAND, STARKIST market 4 (brand 98-100)
+
+
+
