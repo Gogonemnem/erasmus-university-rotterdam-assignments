@@ -20,8 +20,8 @@ print(y.shape)
 # print(y)
 
 # print(em.LogL(mu, Sigma, pi, y))
-W = em.EStep(mu, Sigma, pi, y)
-mu, Sigma, pi = em.MStep(y, W)
+# W = em.EStep(mu, Sigma, pi, y)
+# mu, Sigma, pi = em.MStep(y, W)
 # print(W)
 # print(mu)
 # print(Sigma)
@@ -34,13 +34,24 @@ mu, Sigma, pi = em.MStep(y, W)
 # print(s)
 # print(diag_view)
 
-mu, Sigma, pi = em.EM(2, y)
-print(mu)
-print(Sigma)
-print(pi)
+Ks = (2,3,4)
+for K in Ks:
+    print(K)
+    mu, Sigma, pi = em.EM(y, K=K)
+    print(f'{mu=}')
+    print(f'{Sigma=}')
+    print(f'{pi=}')
+    print(em.LogL(mu, Sigma, pi, y))
+    print(em.BIC(mu, Sigma, pi, y))
+    em.plot2D(y, cond=True, pred=(mu, Sigma, pi))
 
-print(em.LogL(mu, Sigma, pi, y))
+# print(y - mu[:,None])
+# print((y[:,1] - mu[:,1][:,None]).shape)
 
+# p = em.predict(y, mu, Sigma, pi, index=1)
+# print(p.shape)
+
+# 
 
 
 # K = len(mu)
@@ -68,6 +79,28 @@ print(em.LogL(mu, Sigma, pi, y))
 # print(sigma.shape)
 # print(sigma)
 
+# k = 3
+# i = 3
+# p = 5
+# #p-i = 2
+# mu1=np.ones((k, i))
+# mu2=np.ones((k, p-i))
+# Sigma11=np.ones((k, i, i))
+# Sigma12=np.ones((k, i, p-i))
+# Sigma21=np.ones((k, p-i, i))
+# Sigma22=np.ones((k, p-i, p-i))
+# a_mu1=y[:,:1] - mu1[:,None]
+
+
+# part1 = Sigma21@Sigma11
+# print(part1)
+# print(part1.shape)
+
+# part2 = np.einsum('ijk,ilk->lij', part1, a_mu1)
+# print(part2)
+# print(part2.shape)
+# print(W.shape)
+# print((W[:,:,None]*part2).sum(axis=1).shape)
 
 
 
