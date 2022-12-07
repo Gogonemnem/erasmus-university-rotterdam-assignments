@@ -53,6 +53,9 @@ def EStep(mu, Sigma, pi, y):
         raise Exception("There are too many segments")
     if len(pi) + 1 == len(mu) or len(pi) + 1 == len(Sigma):
         pi = np.append(pi, 1-sum(pi))
+    if np.sum(pi) != 1:
+        pi /= np.sum(pi)
+    
     N = len(y)
     k = len(pi)
 
@@ -109,10 +112,8 @@ def EM(y, K, iter=10, eps=1e-4, seed=0, diff='relative'):
     return best_mu, best_Sigma, best_pi
 
 def predict(y, mu, Sigma, pi, index=1):
-    W = EStep(mu, Sigma, pi, y)
-
     mu1 = mu[:, :index]
-    # mu2 = mu[:, index:]
+    mu2 = mu[:, index:]
     Sigma11 = Sigma[:, :index, :index]
     # Sigma12 = Sigma[:, :index, index:]
     Sigma21 = Sigma[:, index:, :index]
@@ -120,8 +121,9 @@ def predict(y, mu, Sigma, pi, index=1):
 
     part1 = Sigma21@np.linalg.inv(Sigma11)
     part2 = y[:,:1] - mu1[:,None]
-    new_mu = np.einsum('ijk,ilk->lij', part1, part2)
+    new_mu = mu2 + np.einsum('ijk,ilk->lij', part1, part2)
 
+    W = EStep(mu1, Sigma11, pi, y[:,:1])
     p = (W[:,:,None]*new_mu).sum(axis=1)
     return p
 
