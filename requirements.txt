@@ -1,0 +1,8 @@
+pyspark
+pyarrow
+scipy
+numpy
+pandas
+tensorflow
+tensorflow_hub
+sklearn
