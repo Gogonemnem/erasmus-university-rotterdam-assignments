@@ -1,4 +1,5 @@
 ipykernel
 ipython
 
+matplotlib
 pandas
