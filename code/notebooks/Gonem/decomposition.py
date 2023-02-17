@@ -30,6 +30,14 @@ class STLDecomposer():
         combined_data = pd.concat([stl_components, decomposables, untouched_data], axis=1)
         return combined_data
     
+
+class Filter():
+    def __init__(self, labels=None):
+        self.labels = labels
+
+    def __call__(self, data):
+        return data[self.labels]
+    
 def main():
     import openpyxl
     import pathlib

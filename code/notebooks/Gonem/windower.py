@@ -15,41 +15,7 @@ bas_directory = code_directory / "notebooks" / "Bas"
 data_file = bas_directory / "df_filtered_maize_trade_oil_weather_futures.xlsx"
 data_file
 
-
 df = pd.read_excel(data_file, header=[0, 1], index_col=0)
-# print(df.head(5))
-# df = df.fillna(0)
-# df.replace([np.inf, -np.inf], np.nan, inplace=True)
-# print(df.head(5))
-
-
-column_indices = {name: i for i, name in enumerate(df.columns)}
-
-
-
-
-num_features = df.shape[1]
-
-
-# train_df['price'].head(5)
-# train_mean = train_df.mean()
-# print(train_mean)
-# train_std = train_df.std()
-# print(train_std)
-
-# train_df = (train_df - train_mean) / train_std
-# val_df = (val_df - train_mean) / train_std
-# test_df = (test_df - train_mean) / train_std
-
-# train_df.fillna(0, inplace=True)
-# val_df.fillna(0, inplace=True)
-# test_df.fillna(0, inplace=True)
-
-# print(train_df.head(10))
-# print(train_mean['price'])
-
-# train_df.columns.get_level_values(0)
-
 
 class WindowGenerator():
     def __init__(self, input_width, label_width, shift, data=df,
@@ -59,6 +25,7 @@ class WindowGenerator():
         data = data.fillna(0)
         
         n = len(data)
+        self.split = split
         self.train_df = data[int(n*split[0]):int(n*split[1])]
         self.val_df   = data[int(n*split[1]):int(n*split[2])]
         self.test_df  = data[int(n*split[2]):int(n*split[3])]
@@ -133,7 +100,19 @@ class WindowGenerator():
         self.test_df = preprocessor(self.test_df)
         self._set_indices()
 
-            
+    def copy(self, df=None):
+        # if df is None:
+        df = pd.concat([self.train_df, self.val_df, self.test_df])
+
+        new_window = WindowGenerator(input_width=self.input_width, 
+                                     label_width=self.label_width, 
+                                     shift=self.shift, 
+                                     data=df,
+                                     split=self.split,
+                                     label_columns=self.label_columns)
+        
+        return new_window
+
         
     # This function splits the whole window into the input data X and the labels y
     def split_window(self, features):
@@ -174,10 +153,12 @@ class WindowGenerator():
                         edgecolors='k', label='Labels', c='#2ca02c', s=64)
             if model is not None:
                 predictions = model(inputs)
+
+                print(label_col_index)
+                print(predictions.shape)
                 
-                # plt.scatter(self.label_indices, predictions[n, :, label_col_index],
-                # print(plot_col_index, predictions.shape)
-                plt.scatter(self.label_indices, predictions[n, label_col_index],
+                plt.scatter(self.label_indices, predictions[n, :, label_col_index],
+                # plt.scatter(self.label_indices, predictions[n, label_col_index],
                             marker='X', edgecolors='k', label='Predictions',
                             c='#ff7f0e', s=64)
 
