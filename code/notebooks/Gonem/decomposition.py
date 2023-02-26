@@ -27,7 +27,7 @@ class STLDecomposer():
                                  (column.name[0]+'_residual', column.name[1]): stl.resid})
         
         stl_components = pd.concat([get_stl_results(decomposables[col]) for col in decomposables.columns], axis=1)
-        combined_data = pd.concat([stl_components, decomposables, untouched_data], axis=1)
+        combined_data = pd.concat([stl_components, untouched_data, decomposables], axis=1)
         return combined_data
     
 

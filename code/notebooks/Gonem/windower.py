@@ -19,7 +19,7 @@ df = pd.read_excel(data_file, header=[0, 1], index_col=0)
 
 class WindowGenerator():
     def __init__(self, input_width, label_width, shift, data=df,
-                 split=[0, 0.7, 0.9, 1], label_columns=None):
+                 split=[0, 0.7, 0.9, 1], remove_labels=False, label_columns=None):
         
         data = data.replace([np.inf, -np.inf], np.nan)
         data = data.fillna(0)
@@ -42,6 +42,7 @@ class WindowGenerator():
         # self.val_df   = (self.val_df   - self.train_mean) / self.train_std
         # self.test_df  = (self.test_df  - self.train_mean) / self.train_std
 
+        self.remove_labels = remove_labels
         self.label_columns = label_columns
         self._set_indices()
 
@@ -61,15 +62,30 @@ class WindowGenerator():
 
     @property
     def train(self):
-        return self.make_dataset(self.train_df)
+        result = self.make_dataset(self.train_df)
+        if self.remove_labels:
+            self._train_labeled = result
+            result = self.remove_label_columns(result)
+        self._train = result
+        return result
 
     @property
     def val(self):
-        return self.make_dataset(self.val_df)
+        result = self.make_dataset(self.val_df)
+        if self.remove_labels:
+            self._val_labeled = result
+            result = self.remove_label_columns(result)
+        self._val = result
+        return result
 
     @property
     def test(self):
-        return self.make_dataset(self.test_df)
+        result = self.make_dataset(self.test_df)
+        if self.remove_labels:
+            self._test_labeled = result
+            result = self.remove_label_columns(result)
+        self._test = result
+        return result
 
     @property
     def example(self):
@@ -77,10 +93,21 @@ class WindowGenerator():
         result = getattr(self, '_example', None)
         if result is None:
             # No example batch was found, so get one from the `.train` dataset
-            result = next(iter(self.train))
+            if self.remove_labels:
+                result = next(iter(self._train_labeled))
+            else: 
+                result = next(iter(self._train))
             # And cache it for next time
             self._example = result
         return result
+
+    def remove_label_columns(self, dataset):
+        if self.label_columns is None:
+            return dataset
+        
+        column_indices = [self.train_df.columns.get_loc(idx) for idx in self.label_columns]
+        column_indices = np.setdiff1d(np.arange(self.train_df.shape[1]), column_indices)
+        return dataset.map(lambda x, y: (tf.gather(x, column_indices, axis=2), y))
     
     def set_label_columns(self, label_columns):
         self.label_columns = label_columns
@@ -109,7 +136,8 @@ class WindowGenerator():
                                      shift=self.shift, 
                                      data=df,
                                      split=self.split,
-                                     label_columns=self.label_columns)
+                                     label_columns=self.label_columns,
+                                     remove_labels=self.remove_labels)
         
         return new_window
 
@@ -131,14 +159,23 @@ class WindowGenerator():
         return inputs, labels
     
     def plot(self, model=None, plot_col=None, max_subplots=3):
-        inputs, labels = self.example
+        if self.remove_labels:
+            inputs_full, labels = self.example
+            column_indices = [self.train_df.columns.get_loc(idx) for idx in self.label_columns]
+            column_indices = np.setdiff1d(np.arange(self.train_df.shape[1]), column_indices)
+            inputs = tf.gather(inputs_full, column_indices, axis=2)
+
+        else:
+            inputs, labels = self.example
+            inputs_full, labels_full = inputs, labels
+
         plt.figure(figsize=(12, 8))
         plot_col_index = self.column_indices[plot_col]
         max_n = min(max_subplots, len(inputs))
         for n in range(max_n):
             plt.subplot(max_n, 1, n+1)
             plt.ylabel(f'{plot_col}')
-            plt.plot(self.input_indices, inputs[n, :, plot_col_index],
+            plt.plot(self.input_indices, inputs_full[n, :, plot_col_index],
                     label='Inputs', marker='.', zorder=-10)
 
             if self.label_columns:
@@ -153,9 +190,6 @@ class WindowGenerator():
                         edgecolors='k', label='Labels', c='#2ca02c', s=64)
             if model is not None:
                 predictions = model(inputs)
-
-                print(label_col_index)
-                print(predictions.shape)
                 
                 plt.scatter(self.label_indices, predictions[n, :, label_col_index],
                 # plt.scatter(self.label_indices, predictions[n, label_col_index],
