@@ -12,7 +12,7 @@ code_directory = cwd.parents[1]
 # code_directory = cwd / "code"
 
 bas_directory = code_directory / "notebooks" / "Bas"
-data_file = bas_directory / "df_filtered_maize_trade_oil_weather_futures.xlsx"
+data_file = bas_directory / "MAIZE_FILTERED_2023-02-25_19-36-41.xlsx"
 data_file
 
 df = pd.read_excel(data_file, header=[0, 1], index_col=0)
