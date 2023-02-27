@@ -146,6 +146,7 @@ class AutoregressiveFeedback(tf.keras.Model):
 
             predictions = []
             full_prediction = self.dense_layers[i](x) # => (batch, features)
+            full_prediction = self.drop(full_prediction)
             predictions.append(full_prediction) # first prediction
 
             # rest of the prediction steps.
@@ -156,7 +157,8 @@ class AutoregressiveFeedback(tf.keras.Model):
                     x, state = self.lstm_cells[i](x, states=state, training=training)
                     x = self.drop(x)
                     full_prediction = self.dense_layers[i](x)
-                    x = self.drop(x)
+                    full_prediction = self.drop(full_prediction)
+                    predictions.append(full_prediction)
 
             predictions = tf.stack(predictions) # => (time, batch, features)
             x = tf.transpose(predictions, [1, 0, 2]) # => (batch, time, features)

@@ -11,14 +11,14 @@ cwd = pathlib.Path.cwd()
 code_directory = cwd.parents[1]
 # code_directory = cwd / "code"
 
-bas_directory = code_directory / "notebooks" / "Bas"
-data_file = bas_directory / "df_filtered_maize_trade_oil_weather_futures.xlsx"
-data_file
+# bas_directory = code_directory / "notebooks" / "Bas"
+# data_file = bas_directory / "df_filtered_maize_trade_oil_weather_futures.xlsx"
+# data_file
 
-df = pd.read_excel(data_file, header=[0, 1], index_col=0)
+# df = pd.read_excel(data_file, header=[0, 1], index_col=0)
 
 class WindowGenerator():
-    def __init__(self, input_width, label_width, shift, data=df,
+    def __init__(self, input_width, label_width, shift, data,
                  split=[0, 0.7, 0.9, 1], remove_labels=False, label_columns=None):
         
         data = data.replace([np.inf, -np.inf], np.nan)
