@@ -79,92 +79,110 @@ class Model(tf.keras.Model):
         return self.attention(X, return_weights=True)[1]
 
 class SingleShot(tf.keras.Model):
-    def __init__(self, out_steps, number_of_features, units=32, blocks=1, heads=None, dropout=0.2, *args, **kwargs):
+    def __init__(self, out_steps, number_of_features, num_layers=0, units=32, lstm_layers=None, lstm_units=None, dense_layers=None, dense_units=None, heads=None, key_dim=None, dropout=0.2, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        self.blocks = blocks
-        if heads is None:
-            heads = units
 
-        self.attention_layers = [attention.MHAFS(heads=heads, key_dim=units) for _ in range(self.blocks)]
-        self.lstm_layers = [tf.keras.layers.LSTM(units, activation='softmax', return_sequences=False) for _ in range(self.blocks)]
-        self.dense_layers = [tf.keras.layers.Dense(out_steps*number_of_features, activation='linear') for _ in range(self.blocks)]
-        # self.dense10 = tf.keras.layers.Dense(10)
-        # self.dense_layer = tf.keras.layers.Dense(out_steps*number_of_features, activation='linear')
+        self.lstm_units = units if lstm_units is None else lstm_units
+        self.dense_units = units if dense_units is None else dense_units
+        self.key_dim = units if key_dim is None else key_dim
+
+        self.lstm_layers = num_layers if lstm_layers is None else lstm_layers
+        self.dense_layers = num_layers if dense_layers is None else dense_layers
+
+        self.attention_layer = attention.MHAFS(heads=heads, key_dim=key_dim)
+        self.lstm_layers = [tf.keras.layers.LSTM(self.lstm_units, return_sequences=True) for _ in range(self.lstm_layers)] + \
+                           [tf.keras.layers.LSTM(self.lstm_units, return_sequences=False)]
+        self.dense_layers = [tf.keras.layers.Dense(self.dense_units) for _ in range(self.dense_layers)] + \
+                            [tf.keras.layers.Dense(out_steps*number_of_features)]
         self.drop = tf.keras.layers.Dropout(dropout)
         self.reshape = tf.keras.layers.Reshape([out_steps, number_of_features])
 
-    def build(self, input_shape):
-        return super().build(input_shape)
-
     def call(self, inputs):
         x = inputs
+        x = self.attention_layer(x)
+        x = self.drop(x)
 
-        for i in range(self.blocks):
-            x = self.attention_layers[i](x)
+        for lstm_layer in self.lstm_layers:
+            x = lstm_layer(x)
             x = self.drop(x)
-            x = self.lstm_layers[i](x)
+
+        for dense_layer in self.dense_layers:
+            x = dense_layer(x)
             x = self.drop(x)
-            x = self.dense_layers[i](x)
-            x = self.drop(x)
-            x = self.reshape(x)
+
+        x = self.reshape(x)
 
         return x
     
     def get_attention_weights(self, input):
-        _, weights = self.attention_layers[0](input, return_weights=True)
+        _, weights = self.attention_layer(input, return_weights=True)
         return weights
 
 class AutoregressiveFeedback(tf.keras.Model):
-    def __init__(self, out_steps, number_of_features, units=32, blocks=1, heads=None, dropout=0.2, *args, **kwargs):
+    def __init__(self, out_steps, number_of_features, num_layers=0, units=32, lstm_layers=None, lstm_units=None, prediction_layers=None, prediction_units=None, feature_layers=None, feature_units=None, heads=None, key_dim=None, dropout=0.2, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.out_steps = out_steps
-        self.blocks = blocks
-        if heads is None:
-            heads = units
+        
+        self.lstm_units = units if lstm_units is None else lstm_units
+        self.prediction_units = units if prediction_units is None else prediction_units
+        self.feature_units = units if feature_units is None else feature_units
+        self.key_dim = units if key_dim is None else key_dim
 
-        self.attention_layers = [attention.MHAFS(heads=heads, key_dim=units) for _ in range(self.blocks)]
-        self.lstm_cells = [tf.keras.layers.LSTMCell(units) for _ in range(self.blocks)]
-        # LSTMCell in an RNN to simplify warmup.
-        self.lstm_layers = [tf.keras.layers.RNN(self.lstm_cells[i], return_state=True) for i in range(self.blocks)]
-        self.prediction_layers = [tf.keras.layers.Dense(units) for _ in range(self.blocks-1)] + [tf.keras.layers.Dense(number_of_features)]
+        self.lstm_layers = num_layers if lstm_layers is None else lstm_layers
+        self.prediction_layers = num_layers if prediction_layers is None else prediction_layers
+        self.feature_layers = num_layers if feature_layers is None else feature_layers
+
+        self.attention_layer = attention.MHAFS(heads=heads, key_dim=self.key_dim)
+        self.lstm_cells = [tf.keras.layers.LSTMCell(self.lstm_units) for _ in range(self.lstm_layers)]
+        last_lstm_cell = tf.keras.layers.LSTMCell(self.lstm_units)
+        
+        # # LSTMCell in an RNN to simplify warmup.
+        self.lstm_layers = [tf.keras.layers.RNN(lstm_cell, return_state=True, return_sequences=True) for lstm_cell in self.lstm_cells] + \
+                           [tf.keras.layers.RNN(last_lstm_cell, return_state=True)]
+        self.prediction_layers = [tf.keras.layers.Dense(self.prediction_units) for _ in range(self.prediction_layers)] + \
+                                 [tf.keras.layers.Dense(number_of_features)]
+        self.feature_layers = [tf.keras.layers.Dense(self.feature_units) for _ in range(self.feature_layers)]
 
         self.drop = tf.keras.layers.Dropout(dropout)
 
     def build(self, input_shape):
-        number_of_all_features = input_shape[-1] 
-        self.dense_layers = [tf.keras.layers.Dense(number_of_all_features) for _ in range(self.blocks)]
+        self.time_steps = input_shape[1]
+        number_of_all_features = input_shape[-1]
+        self.feature_layers += [tf.keras.layers.Dense(number_of_all_features)]
     
     def call(self, inputs, training=None):
         x = inputs # => (batch, time, features)
+        x = self.attention_layer(x) # => (batch, time, features)
+        x = self.drop(x)
 
-        for i in range(self.blocks):
-            x = self.attention_layers[i](x) # => (batch, time, features)
-            x = self.drop(x)
-            x, *state = self.lstm_layers[i](x) # => (batch, lstm_units)
-            x = self.drop(x)
+        predictions = []
 
-            predictions = []
-            full_prediction = self.dense_layers[i](x) # => (batch, features)
-            full_prediction = self.drop(full_prediction)
-            predictions.append(full_prediction) # first prediction
-
-            # rest of the prediction steps.
-            for _ in range(1, self.out_steps):
-                    # Use the last prediction as input.
-                    x = full_prediction
-                    # Execute one lstm step.
-                    x, state = self.lstm_cells[i](x, states=state, training=training)
-                    x = self.drop(x)
-                    full_prediction = self.dense_layers[i](x)
-                    full_prediction = self.drop(full_prediction)
-                    predictions.append(full_prediction)
-
-            predictions = tf.stack(predictions) # => (time, batch, features)
-            x = tf.transpose(predictions, [1, 0, 2]) # => (batch, time, features)
+        states = [None] * len(self.lstm_layers)
         
-        for i in range(self.blocks):
-            x = self.prediction_layers[i](x)
+        for i, lstm_layer in enumerate(self.lstm_layers):
+            x, *states[i] = lstm_layer(x) # => (batch, lstm_units)
+            x = self.drop(x)
+
+        predictions.append(x)
+        for feature_layer in self.feature_layers:
+            x = feature_layer(x)
+            x = self.drop(x)
+
+        for _ in range(1, self.out_steps):
+            for i, lstm_cell in enumerate(self.lstm_cells):
+                x, states[i] = lstm_cell(x, states=states[i], training=training)
+                x = self.drop(x)
+
+            predictions.append(x)
+            for feature_layer in self.feature_layers:
+                x = feature_layer(x)
+                x = self.drop(x)
+
+        predictions = tf.stack(predictions) # => (time, batch, features)
+        x = tf.transpose(predictions, [1, 0, 2]) # => (batch, time, features)
+
+        for prediction_layer in self.prediction_layers:
+            x = prediction_layer(x)
             x = self.drop(x)
         return x
     
@@ -174,43 +192,50 @@ class AutoregressiveFeedback(tf.keras.Model):
     
 
 class EncoderDecoder(tf.keras.Model):
-    def __init__(self, out_steps, number_of_features, units=32, blocks=1, heads=None, dropout=0.2, *args, **kwargs):
+    def __init__(self, out_steps, number_of_features, num_layers=0, units=32, encoder_layers=None, encoder_units=None, decoder_layers=None, decoder_units=None,  dense_layers=None, dense_units=None, heads=None, key_dim=None, dropout=0.2, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.blocks = blocks
-        if heads is None:
-            heads = units
+        self.encoder_units = units if encoder_units is None else encoder_units
+        self.decoder_units = units if decoder_units is None else decoder_units
+        self.dense_units = units if dense_units is None else dense_units
+        self.key_dim = units if key_dim is None else key_dim
+
+        self.encoder_layers = num_layers if encoder_layers is None else encoder_layers
+        self.decoder_layers = num_layers if decoder_layers is None else decoder_layers
+        self.dense_layers = num_layers if dense_layers is None else dense_layers
         
-        self.blocks = blocks
         
-        
-        self.attention_layers = [attention.MHAFS(heads=heads, key_dim=units) for _ in range(self.blocks)]
-        self.encoder_layers = [tf.keras.layers.LSTM(units, activation='softmax', return_sequences=False) for _ in range(self.blocks)]
+        self.attention_layer = attention.MHAFS(heads=heads, key_dim=self.key_dim)
+        self.encoder_layers = [tf.keras.layers.LSTM(self.encoder_units, return_sequences=True) for _ in range(self.encoder_layers)] + \
+                              [tf.keras.layers.LSTM(self.encoder_units, return_sequences=False)]
         self.repeat = tf.keras.layers.RepeatVector(out_steps)
-        self.decoder_layers =[tf.keras.layers.LSTM(units, activation='softmax', return_sequences=True) for _ in range(self.blocks)]
-        dense_layers = [tf.keras.layers.Dense(number_of_features) for _ in range(self.blocks)]
-        self.timed_distributed_layers = [tf.keras.layers.TimeDistributed(dense_layers[i]) for i in range(self.blocks)]
+        self.decoder_layers = [tf.keras.layers.LSTM(self.decoder_units, return_sequences=True) for _ in range(self.decoder_layers + 1)]
+        self.dense_layers = [tf.keras.layers.Dense(self.dense_units) for _ in range(self.dense_layers)] + \
+                            [tf.keras.layers.Dense(number_of_features)]
 
         self.drop = tf.keras.layers.Dropout(dropout)
-
-    def build(self, input_shape):
-        return super().build(input_shape)
     
     def call(self, inputs, training=None, mask=None):
         x = inputs
-        for i in range(self.blocks):
-            x = self.attention_layers[i](x)
+        x = self.attention_layer(x)
+        x = self.drop(x)
+
+        for encoder_layer in self.encoder_layers:
+            x = encoder_layer(x)
             x = self.drop(x)
-            x = self.encoder_layers[i](x)
+
+        x = self.repeat(x)
+
+        for decoder_layer in self.decoder_layers:
+            x = decoder_layer(x)
             x = self.drop(x)
-            x = self.repeat(x)
-            x = self.decoder_layers[i](x)
-            x = self.drop(x)
-            x = self.timed_distributed_layers[i](x)
+        
+        for dense_layer in self.dense_layers:
+            x = dense_layer(x)
             x = self.drop(x)
         return x
 
     def get_attention_weights(self, input):
-        _, weights = self.attention_layers[0](input, return_weights=True)
+        _, weights = self.attention_layer(input, return_weights=True)
         return weights
     
