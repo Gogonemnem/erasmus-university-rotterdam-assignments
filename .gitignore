@@ -1,6 +1,8 @@
 code/data/*
-!code/data/.placeholderfile
+#!code/data/.placeholderfile
 .DS_Store
+code/notebooks/Gonem/hp/*
+!**/.placeholderfile
 
 ### PyCharm
 .idea

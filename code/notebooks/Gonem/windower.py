@@ -11,24 +11,26 @@ cwd = pathlib.Path.cwd()
 code_directory = cwd.parents[1]
 # code_directory = cwd / "code"
 
-bas_directory = code_directory / "notebooks" / "Bas"
-data_file = bas_directory / "df_filtered_maize_trade_oil_weather_futures.xlsx"
-data_file
+# bas_directory = code_directory / "notebooks" / "Bas"
+# data_file = bas_directory / "df_filtered_maize_trade_oil_weather_futures.xlsx"
+# data_file
 
-df = pd.read_excel(data_file, header=[0, 1], index_col=0)
+# df = pd.read_excel(data_file, header=[0, 1], index_col=0)
 
 class WindowGenerator():
-    def __init__(self, input_width, label_width, shift, data=df,
-                 split=[0, 0.7, 0.9, 1], label_columns=None):
+    def __init__(self, input_width, label_width, shift, data, train_begin=0, train_end=.7, val_begin=None, val_end=None,
+                 test_begin=None, test_end=None, connect=False, remove_labels=False, label_columns=None):
+        self.connect = connect
+        # Work out the window parameters.
+        self.input_width = input_width
+        self.label_width = label_width
+        self.shift = shift
+        self.total_window_size = input_width + shift
         
         data = data.replace([np.inf, -np.inf], np.nan)
         data = data.fillna(0)
-        
-        n = len(data)
-        self.split = split
-        self.train_df = data[int(n*split[0]):int(n*split[1])]
-        self.val_df   = data[int(n*split[1]):int(n*split[2])]
-        self.test_df  = data[int(n*split[2]):int(n*split[3])]
+
+        self.train_val_test_split(data, train_begin, train_end, val_begin, val_end, test_begin, test_end)
 
         # Store the raw data.
         self.raw_train_df = self.train_df
@@ -42,15 +44,9 @@ class WindowGenerator():
         # self.val_df   = (self.val_df   - self.train_mean) / self.train_std
         # self.test_df  = (self.test_df  - self.train_mean) / self.train_std
 
+        self.remove_labels = remove_labels
         self.label_columns = label_columns
         self._set_indices()
-
-        # Work out the window parameters.
-        self.input_width = input_width
-        self.label_width = label_width
-        self.shift = shift
-
-        self.total_window_size = input_width + shift
 
         self.input_slice = slice(0, input_width)
         self.input_indices = np.arange(self.total_window_size)[self.input_slice]
@@ -61,26 +57,99 @@ class WindowGenerator():
 
     @property
     def train(self):
-        return self.make_dataset(self.train_df)
+        result = self.make_dataset(self.train_df)
+        if self.remove_labels:
+            self._train_labeled = result
+            result = self.remove_label_columns(result)
+        self._train = result
+        return result
 
     @property
     def val(self):
-        return self.make_dataset(self.val_df)
+        result = self.make_dataset(self.val_df)
+        if self.remove_labels:
+            self._val_labeled = result
+            result = self.remove_label_columns(result)
+        self._val = result
+        return result
 
     @property
     def test(self):
-        return self.make_dataset(self.test_df)
+        result = self.make_dataset(self.test_df)
+        if self.remove_labels:
+            self._test_labeled = result
+            result = self.remove_label_columns(result)
+        self._test = result
+        return result
 
     @property
     def example(self):
         """Get and cache an example batch of `inputs, labels` for plotting."""
         result = getattr(self, '_example', None)
         if result is None:
-            # No example batch was found, so get one from the `.train` dataset
-            result = next(iter(self.train))
+            # No example batch was found, so get one from the `.test` dataset
+            if self.remove_labels:
+                result = next(iter(self._test_labeled))
+            else: 
+                result = next(iter(self._test))
             # And cache it for next time
             self._example = result
         return result
+
+    def train_val_test_split(self, data, train_begin=0, train_end=.7, val_begin=None, val_end=None, test_begin=None, test_end=None):
+        n = len(data)
+
+        if not isinstance(train_begin, int):
+            train_begin = int(n*train_begin)
+        if not isinstance(train_end, int):
+            train_end = int(n*train_end)
+
+        if val_begin is None:
+            if val_end is None:
+                val_begin, val_end = train_begin, train_end
+            elif self.connect:
+                val_begin = train_end - self.total_window_size + 1
+            else:
+                val_begin = train_end
+        elif not isinstance(val_begin, int):
+            val_begin = int(n*val_begin)
+        
+        if val_end is None:
+            if test_begin is None:
+                val_end = n - 0.5*(n - val_begin)
+            elif self.connect:
+                val_end = test_begin + self.total_window_size - 1
+            else:
+                val_end = test_begin
+        elif not isinstance(val_end, int):
+            val_end = int(n*val_end)
+    
+        if test_begin is None:
+            if test_end is None:
+                test_begin, test_end = val_begin, val_end
+            elif self.connect:
+                test_begin = val_end - self.total_window_size + 1
+            else:
+                test_begin = val_end
+        elif not isinstance(test_begin, int):
+            test_begin = int(n*test_begin)
+
+        if test_end is None:
+            test_end = n
+        elif not isinstance(test_end, int):
+            test_end = int(n*test_end)      
+
+        self.train_df = data[train_begin:train_end]
+        self.val_df   = data[val_begin:val_end]
+        self.test_df  = data[test_begin:test_end]
+
+    def remove_label_columns(self, dataset):
+        if self.label_columns is None:
+            return dataset
+        
+        column_indices = [self.train_df.columns.get_loc(idx) for idx in self.label_columns]
+        column_indices = np.setdiff1d(np.arange(self.train_df.shape[1]), column_indices)
+        return dataset.map(lambda x, y: (tf.gather(x, column_indices, axis=2), y))
     
     def set_label_columns(self, label_columns):
         self.label_columns = label_columns
@@ -100,6 +169,9 @@ class WindowGenerator():
         self.test_df = preprocessor(self.test_df)
         self._set_indices()
 
+    def add_label_postprocess(self, label_postprocessor):
+        self.label_postprocessor = label_postprocessor
+
     def copy(self, df=None):
         # if df is None:
         df = pd.concat([self.train_df, self.val_df, self.test_df])
@@ -109,7 +181,8 @@ class WindowGenerator():
                                      shift=self.shift, 
                                      data=df,
                                      split=self.split,
-                                     label_columns=self.label_columns)
+                                     label_columns=self.label_columns,
+                                     remove_labels=self.remove_labels)
         
         return new_window
 
@@ -131,16 +204,27 @@ class WindowGenerator():
         return inputs, labels
     
     def plot(self, model=None, plot_col=None, max_subplots=3):
-        inputs, labels = self.example
+        if self.remove_labels:
+            inputs_full, labels = self.example
+            # column_indices = [self.train_df.columns.get_loc(idx) for idx in self.label_columns]
+            column_indices = [self.column_indices[name] for name in self.label_columns_indices]
+            input_labels = tf.gather(inputs_full, column_indices, axis=2)
+            column_indices = np.setdiff1d(np.arange(self.train_df.shape[1]), column_indices)
+            inputs = tf.gather(inputs_full, column_indices, axis=2)
+            
+
+        else:
+            inputs, labels = self.example
+            inputs_full, labels_full = inputs, labels
+            column_indices = [self.column_indices[name] for name in self.label_columns_indices]
+            input_labels = tf.gather(inputs_full, column_indices, axis=2)
+
         plt.figure(figsize=(12, 8))
         plot_col_index = self.column_indices[plot_col]
         max_n = min(max_subplots, len(inputs))
         for n in range(max_n):
             plt.subplot(max_n, 1, n+1)
             plt.ylabel(f'{plot_col}')
-            plt.plot(self.input_indices, inputs[n, :, plot_col_index],
-                    label='Inputs', marker='.', zorder=-10)
-
             if self.label_columns:
                 label_col_index = self.label_columns_indices.get(plot_col, None)
             else:
@@ -148,16 +232,21 @@ class WindowGenerator():
 
             if label_col_index is None:
                 continue
+            # column_indices = [self.column_indices[name] for name in self.label_columns_indices]
+            # inputs_labels = self.label_postprocessor.reverse(inputs_full[:, :, self.column_indices])
+            # plt.plot(self.input_indices, inputs_full[n, :, plot_col_index],
+            #         label='Inputs', marker='.', zorder=-10)
+            plt.plot(self.input_indices, self.label_postprocessor.reverse(input_labels)[n, :, label_col_index],
+                    label='Inputs', marker='.', zorder=-10)
 
-            plt.scatter(self.label_indices, labels[n, :, label_col_index],
+            
+
+            plt.scatter(self.label_indices, self.label_postprocessor.reverse(labels)[n, :, label_col_index],
                         edgecolors='k', label='Labels', c='#2ca02c', s=64)
             if model is not None:
                 predictions = model(inputs)
-
-                print(label_col_index)
-                print(predictions.shape)
                 
-                plt.scatter(self.label_indices, predictions[n, :, label_col_index],
+                plt.scatter(self.label_indices, self.label_postprocessor.reverse(predictions)[n, :, label_col_index],
                 # plt.scatter(self.label_indices, predictions[n, label_col_index],
                             marker='X', edgecolors='k', label='Predictions',
                             c='#ff7f0e', s=64)
@@ -176,7 +265,7 @@ class WindowGenerator():
             sequence_length=self.total_window_size,
             sequence_stride=1,
             ###### STILL PLAYING WITH SHUFFLE
-            shuffle=True,
+            shuffle=False,
             batch_size=32,)
 
         ds = ds.map(self.split_window)
