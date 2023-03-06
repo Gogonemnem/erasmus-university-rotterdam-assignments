@@ -1,8 +1,10 @@
 ipykernel
 ipython
 jupyter
+jupyterlab
 matplotlib
 pandas
 tensorflow
 keras_tuner
 statsmodels
+openpyxl
