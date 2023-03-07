@@ -73,6 +73,23 @@ class Standardizer():
         data = (data * self.std) + self.mean
         return data
     
+class MinMaxScaler():
+    def __init__(self, min=None, max=None):
+        self.min = min
+        self.max = max
+
+    def __call__(self, data):
+        if self.min is None:
+            self.max = data.max()
+            self.min  = data.min()
+
+        data = (data - self.min) / (self.max - self.min)
+        return data
+    
+    def reverse(self, data):
+        data = (data * (self.max - self.min)) + self.min
+        return data
+    
 
 class Logger():
     def __init__(self, factor=math.e, labels=None, label_indices=None) -> None:

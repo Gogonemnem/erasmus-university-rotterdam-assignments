@@ -37,13 +37,6 @@ class WindowGenerator():
         self.raw_val_df   = self.val_df
         self.raw_test_df  = self.test_df
 
-        self.train_mean = self.train_df.mean()
-        self.train_std  = self.train_df.std().replace(0, 1)
-
-        # self.train_df = (self.train_df - self.train_mean) / self.train_std
-        # self.val_df   = (self.val_df   - self.train_mean) / self.train_std
-        # self.test_df  = (self.test_df  - self.train_mean) / self.train_std
-
         self.remove_labels = remove_labels
         self.label_columns = label_columns
         self._set_indices()
@@ -85,13 +78,36 @@ class WindowGenerator():
     @property
     def example(self):
         """Get and cache an example batch of `inputs, labels` for plotting."""
+        return self.example()
+        # result = getattr(self, '_example', None)
+        # if result is None:
+        #     # No example batch was found, so get one from the `.test` dataset
+        #     if self.remove_labels:
+        #         result = next(iter(self._test_labeled))
+        #     else: 
+        #         result = next(iter(self._test))
+        #     # And cache it for next time
+        #     self._example = result
+        # return result
+    
+    def example(self, dataset = 'test', reset=False):
         result = getattr(self, '_example', None)
-        if result is None:
+        if result is None or reset:
             # No example batch was found, so get one from the `.test` dataset
             if self.remove_labels:
-                result = next(iter(self._test_labeled))
+                if dataset == 'test':
+                    result = next(iter(self._test_labeled))
+                if dataset == 'val':
+                    result = next(iter(self._val_labeled))
+                if dataset == 'train':
+                    result = next(iter(self._train_labeled))
             else: 
-                result = next(iter(self._test))
+                if dataset == 'test':
+                    result = next(iter(self._test))
+                if dataset == 'val':
+                    result = next(iter(self._val))
+                if dataset == 'train':
+                    result = next(iter(self._train))
             # And cache it for next time
             self._example = result
         return result
@@ -203,21 +219,23 @@ class WindowGenerator():
 
         return inputs, labels
     
-    def plot(self, model=None, plot_col=None, max_subplots=3):
+    def plot(self, model=None, plot_col=None, max_subplots=3, dataset='test'):
+        
+        ds = self.example(dataset, True)
+        
         if self.remove_labels:
-            inputs_full, labels = self.example
-            # column_indices = [self.train_df.columns.get_loc(idx) for idx in self.label_columns]
+            inputs_full, labels = ds
             column_indices = [self.column_indices[name] for name in self.label_columns_indices]
             input_labels = tf.gather(inputs_full, column_indices, axis=2)
             column_indices = np.setdiff1d(np.arange(self.train_df.shape[1]), column_indices)
             inputs = tf.gather(inputs_full, column_indices, axis=2)
             
-
         else:
-            inputs, labels = self.example
+            inputs, labels = ds
             inputs_full, labels_full = inputs, labels
             column_indices = [self.column_indices[name] for name in self.label_columns_indices]
             input_labels = tf.gather(inputs_full, column_indices, axis=2)
+        
 
         plt.figure(figsize=(12, 8))
         plot_col_index = self.column_indices[plot_col]
