@@ -13,21 +13,31 @@ import models
 
 
 
+keras_tuner.__version__
+
+
+tf.config.list_logical_devices()
+
+
 
 cwd = pathlib.Path.cwd()
 
-code_directory = cwd.parents[1]
-code_directory = cwd / "code"
+# code_directory = cwd.parents[1]
+code_directory = cwd #/ 'code'
 
 bas_directory = code_directory / "notebooks" / "Bas"
 gonem_directory = code_directory / "notebooks" / "Gonem"
 # data_file = bas_directory / "cadeautjevoorGonemenLiza.xlsx"
+example_data_directory = gonem_directory / "example_data"
 data_file = gonem_directory / "MAIZE_FILTERED_2023-03-03_02-09-43.xlsx"
 data_file
 
 
-df = pd.read_excel(data_file, header=[0, 1], index_col=0)
-df.head(5)
+
+
+df = pd.read_excel(data_file, header=[0, 1], index_col=0).iloc[:-2]
+# df = df.loc[:, pd.IndexSlice[:, 'Ukraine']]
+df.describe()
 
 
 label_columns = ['price']
@@ -38,8 +48,9 @@ label_columns
 stl = decomposition.STLDecomposer(labels=label_columns, period=12)
 log = decomposition.Logger(labels=label_columns)
 std = decomposition.Standardizer()
+mms = decomposition.MinMaxScaler()
 
-preproc = decomposition.Processor().add(log).add(std).add(stl)
+preproc = decomposition.Processor().add(stl).add(log).add(std)
 
 
 from windower import WindowGenerator
@@ -49,8 +60,10 @@ label_width = 6
 shift = 6
 
 w = WindowGenerator(input_width=width, label_width=label_width, shift=shift, data=df, 
+                    # train_begin=0, train_end=.9, val_begin=None, val_end=.96,
                     train_begin=0, train_end=.97, val_begin=None, val_end=None,
-                    test_begin=None, test_end=1.0, connect=True, remove_labels=True, label_columns=label_columns)
+                    # train_begin=0, train_end=.5, val_begin=None, val_end=.8,
+                    test_begin=None, test_end=1., connect=True, remove_labels=True, label_columns=label_columns)
 w.preprocess(preproc)
 w
 
@@ -58,14 +71,22 @@ w
 w.train_df.tail(5)
 
 
-all(w.train_df == w.val_df)
+# all(w.train_df == w.val_df)
+w.val_df.head(5)
+
+
+w.val_df.tail(5)
 
 
 w.test_df.head(5)
 
 
+w.test_df.tail(5)
+
+
 label_std = decomposition.Standardizer(mean=std.mean[w.label_columns], std=std.std[w.label_columns])
 label_log = decomposition.Logger(label_indices=range(len(w.label_columns)))
+# label_mms = decomposition.MinMaxScaler(min=mms.min[w.label_columns], max=mms.max[w.label_columns])
 postproc = decomposition.Processor().add(label_std).add(label_log)
 w.add_label_postprocess(postproc)
 
@@ -74,6 +95,12 @@ for example_inputs, example_labels in w.train.take(1):
     print(f'Inputs shape (batch, time, features): {example_inputs.shape}')
     print(f'Labels shape (batch, time, features): {example_labels.shape}')
     output_features = example_labels.shape[-1]
+
+
+
+@tf.function
+def closs(x, y, a=-1):
+    return (x - y)**2 + (tf.sign(x-y)+a)**6
 
 
 def build_ARF(hp):
@@ -87,15 +114,21 @@ def build_ARF(hp):
     heads = hp.Int("heads", min_value=1, max_value=16)
     dropout = hp.Float("dropout", min_value=0, max_value=1)
     key_dim = hp.Int('key_dim', min_value=16, max_value=128, step=16)
+    
+    l1 = hp.Float("l1", min_value=1e-7, max_value=1e-1, sampling="log")
+    # l1 = 0.001
+    l2 = hp.Float("l2", min_value=1e-7, max_value=1e-1, sampling="log")
+    # l2 = 0.001
+    kernel_regularizer = tf.keras.regularizers.L1L2(l1=l1, l2=l2)
 
     model = models.AutoregressiveFeedback(out_steps=label_width, number_of_features=output_features, lstm_units=lstm_units, lstm_layers=lstm_layers,
                                    prediction_units=prediction_units, prediction_layers=prediction_layers, feature_units=feature_units,
-                                   feature_layers=feature_layers, key_dim=key_dim, heads=heads, dropout=dropout)
+                                   feature_layers=feature_layers, key_dim=key_dim, heads=heads, dropout=dropout, kernel_regularizer=kernel_regularizer)
     learning_rate = hp.Float("learning_rate", min_value=1e-7, max_value=1e-2, sampling="log")
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
         loss='mse', 
-        metrics=['mae', 'mse', 'mape']
+        metrics=['mae', 'mse', 'mape', closs]
         )
 
     return model
@@ -111,9 +144,12 @@ def build_SS(hp):
     heads = hp.Int("heads", min_value=1, max_value=16)
     dropout = hp.Float("dropout", min_value=0, max_value=1)
     key_dim = hp.Int('key_dim', min_value=16, max_value=128, step=16)
-
-    # m = EncoderDecoder(out_steps=label_width, number_of_features=5, units=units, blocks=blocks, heads=heads, dropout=dropout)
-    model = models.SingleShot(out_steps=label_width, number_of_features=output_features, lstm_units=lstm_units, lstm_layers=lstm_layers, dense_units=dense_units, dense_layers=dense_layers, key_dim=key_dim, heads=heads, dropout=dropout)
+    
+    l1 = hp.Float("l1", min_value=1e-7, max_value=1e-1, sampling="log")
+    l2 = hp.Float("l2", min_value=1e-7, max_value=1e-1, sampling="log")
+    kernel_regularizer = tf.keras.regularizers.L1L2(l1=l1, l2=l2)
+    
+    model = models.SingleShot(out_steps=label_width, number_of_features=output_features, lstm_units=lstm_units, lstm_layers=lstm_layers, dense_units=dense_units, dense_layers=dense_layers, key_dim=key_dim, heads=heads, dropout=dropout, kernel_regularizer=kernel_regularizer)
 
     learning_rate = hp.Float("learning_rate", min_value=1e-7, max_value=1e-2, sampling="log")
     model.compile(
@@ -136,10 +172,14 @@ def build_ED(hp):
     heads = hp.Int("heads", min_value=1, max_value=16)
     dropout = hp.Float("dropout", min_value=0, max_value=1)
     key_dim = hp.Int('key_dim', min_value=16, max_value=128, step=16)
+    
+    l1 = hp.Float("l1", min_value=1e-7, max_value=1e-1, sampling="log")
+    l2 = hp.Float("l2", min_value=1e-7, max_value=1e-1, sampling="log")
+    kernel_regularizer = tf.keras.regularizers.L1L2(l1=l1, l2=l2)
 
     model = models.EncoderDecoder(out_steps=label_width, number_of_features=output_features, encoder_units=encoder_units, encoder_layers=encoder_layers,
                            decoder_units=decoder_units, decoder_layers=decoder_layers, dense_units=dense_units,
-                           dense_layers=dense_layers, key_dim=key_dim, heads=heads, dropout=dropout)
+                           dense_layers=dense_layers, key_dim=key_dim, heads=heads, dropout=dropout, kernel_regularizer=kernel_regularizer)
 
     learning_rate = hp.Float("learning_rate", min_value=1e-7, max_value=1e-2, sampling="log")
     model.compile(
@@ -158,7 +198,7 @@ tuner_arf = keras_tuner.Hyperband(
     max_epochs=200,
     factor=3,
     hyperband_iterations=1,
-    executions_per_trial=5,
+    executions_per_trial=3,
     seed=2023,
     max_retries_per_trial=10,
     max_consecutive_failed_trials=10,
@@ -174,7 +214,7 @@ tuner_ss = keras_tuner.Hyperband(
     max_epochs=200,
     factor=3,
     hyperband_iterations=1,
-    executions_per_trial=5,
+    executions_per_trial=3,
     seed=2023,
     max_retries_per_trial=10,
     max_consecutive_failed_trials=10,
@@ -190,7 +230,7 @@ tuner_ed = keras_tuner.Hyperband(
     max_epochs=200,
     factor=3,
     hyperband_iterations=1,
-    executions_per_trial=5,
+    executions_per_trial=3,
     seed=2023,
     max_retries_per_trial=10,
     max_consecutive_failed_trials=10,
@@ -200,40 +240,81 @@ tuner_ed = keras_tuner.Hyperband(
 )
 
 
-tuner_arf.search(w.train, validation_data=w.val, verbose=2)
+early_stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3)
 
 
-tuner_ss.search(w.train, validation_data=w.val, verbose=2)
+# tuner_arf.search(w.train, validation_data=w.val, callbacks=[early_stopping_callback], verbose=2)
 
 
-tuner_ed.search(w.train, validation_data=w.val, verbose=2)
+# tuner_ss.search(w.train, validation_data=w.val, callbacks=[early_stopping_callback], verbose=2)
 
 
-m_arf = tuner_arf.get_best_models(num_models=1)[0]
+tuner_ed.search(w.train, validation_data=w.val, callbacks=[early_stopping_callback], verbose=2)
 
 
-checkpoint_path = gonem_directory / 'hp' / 'best_models'
-checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, monitor='val_loss', verbose=0, save_best_only=True, save_weights_only=True)
+checkpoint_path = gonem_directory / 'hp' /'best_models'
+checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, monitor='val_mse', verbose=0, save_best_only=True, save_weights_only=True)
 
 
-m_arf.fit(w.train, epochs=100, validation_data=w.val, callbacks=[checkpoint])
+# m_arf = tuner_arf.get_best_models(num_models=1)[0]
+best_hps = tuner_ss.get_best_hyperparameters()[0]
+best_hps.values
 
 
-m_arf.load_weights(checkpoint_path)
-m_arf.evaluate(w.test)
+m = tuner_ss.hypermodel.build(best_hps)
+m.fit(w.train, epochs=200, validation_data=w.val, callbacks=[checkpoint, early_stopping_callback], verbose=2)
+
+
+m.load_weights(checkpoint_path)
+m.evaluate(w.test)
 
 
 val_performance = {}
 performance = {}
 
+w.test
+
 # val_performance['1'] = m.evaluate(w.val)
-label = label_columns[4]
-print(label)
-# performance['1'] = m.evaluate(w.test)
-w.plot(m_arf, plot_col=label, max_subplots=6)
+for i in range(6):
+
+    label = label_columns[i]
+    print(label)
+    # performance['1'] = m.evaluate(w.test)
+    w.plot(m, plot_col=label, max_subplots=7)
 
 
 
+inputs, labels, predictions, weights = [], [], [], []
+for x, y in w.test.take(1):
+    inputs.append(x)
+    labels.append(y)
+    predictions.append(m(x))
+    weights.append(m.attention_layer(x, return_weights=True)[1])
+    
+inputs = tf.concat(inputs, axis=0)
+labels = tf.concat(labels, axis=0)
+weights = tf.concat(weights, axis=0)
+weights = tf.reduce_mean(weights, axis=0)
+predictions = tf.concat(predictions, axis=0)
 
+
+np.save(example_data_directory / "inputs", inputs.numpy())
+np.save(example_data_directory / "labels", labels.numpy())
+np.save(example_data_directory / "weights", weights.numpy())
+np.save(example_data_directory / "predictions", predictions.numpy())
+
+
+
+inputs = tf.convert_to_tensor(np.load(example_data_directory / "inputs.npy"))
+labels = tf.convert_to_tensor(np.load(example_data_directory / "labels.npy"))
+weights = tf.convert_to_tensor(np.load(example_data_directory / "weights.npy"))
+predictions = tf.convert_to_tensor(np.load(example_data_directory / "predictions.npy"))
+
+
+print(inputs.shape, labels.shape)
+
+
+for weight, column in zip(weights[0], w.train_df.columns):
+    print(weight.numpy(), column)
 
 
