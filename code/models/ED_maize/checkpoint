@@ -1,0 +1,2 @@
+model_checkpoint_path: "ED_maize"
+all_model_checkpoint_paths: "ED_maize"
