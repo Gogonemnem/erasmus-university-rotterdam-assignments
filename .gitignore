@@ -4,6 +4,8 @@ code/data/*
 code/notebooks/Gonem/hp/*
 !**/.placeholderfile
 
+hp/
+
 ### PyCharm
 .idea
 ### VScode

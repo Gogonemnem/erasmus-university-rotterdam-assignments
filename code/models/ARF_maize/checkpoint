@@ -1,0 +1,2 @@
+model_checkpoint_path: "ARF_maize"
+all_model_checkpoint_paths: "ARF_maize"
