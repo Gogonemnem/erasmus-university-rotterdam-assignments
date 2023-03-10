@@ -1,0 +1,2 @@
+model_checkpoint_path: "SS_sunflower"
+all_model_checkpoint_paths: "SS_sunflower"

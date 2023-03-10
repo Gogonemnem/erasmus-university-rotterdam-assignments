@@ -4,11 +4,11 @@ import tensorflow as tf
 # Code inpiration: https://gist.github.com/ekreutz/160070126d5e2261a939c4ddf6afb642
 class AFS(tf.keras.layers.Layer):
     # Dot-Product Attention for Feature Selection
-    def __init__(self, use_scale=True, **kwargs):
+    def __init__(self, use_scale=True, kernel_regularizer=None, **kwargs):
         super().__init__(**kwargs)
         self.use_scale = use_scale
 
-        self.probabilities = tf.keras.layers.Dense(2, activation='softmax')
+        self.probabilities = tf.keras.layers.Dense(2, activation='softmax', activity_regularizer=kernel_regularizer)
     
     def build(self, query_shape, key_shape=None, value_shape=None):
         if key_shape is None:
@@ -99,14 +99,14 @@ class AFS(tf.keras.layers.Layer):
 # Code inpiration: https://machinelearningmastery.com/how-to-implement-multi-head-attention-from-scratch-in-tensorflow-and-keras
 
 class MHAFS(tf.keras.layers.Layer):
-    def __init__(self, heads=8, key_dim=None, **kwargs):
+    def __init__(self, heads=8, key_dim=None, kernel_regularizer=None, **kwargs):
         super().__init__(**kwargs)
         self.attention = AFS()  # Scaled dot product attention 
         self.heads = heads  # Number of attention heads to use
         self.key_dim = key_dim  # Dimensionality of the linearly projected queries and keys
         #self.d_v = d_v  # Dimensionality of the linearly projected values
         # self.W_v = Dense(d_v)  # Learned projection matrix for the values
-        
+        self.kernel_regularizer=kernel_regularizer
 
     def build(self, query_shape, key_shape=None, value_shape=None):
         if value_shape is not None:
@@ -119,8 +119,8 @@ class MHAFS(tf.keras.layers.Layer):
         if self.key_dim is None:
             self.key_dim = self.number_of_features
         
-        self.W_q = tf.keras.layers.Dense(self.number_of_features*self.heads)
-        self.W_k = tf.keras.layers.Dense(self.key_dim*self.heads)
+        self.W_q = tf.keras.layers.Dense(self.number_of_features*self.heads, activity_regularizer=self.kernel_regularizer)
+        self.W_k = tf.keras.layers.Dense(self.key_dim*self.heads, activity_regularizer=self.kernel_regularizer)
         self.W_v = lambda values: tf.tile(values, multiples=(1, 1, self.heads))
         # self.W_o = tf.keras.layers.Dense(self.number_of_features) # Learned projection matrix for the multi-head output
     

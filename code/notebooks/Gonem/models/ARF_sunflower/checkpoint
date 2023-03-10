@@ -1,0 +1,2 @@
+model_checkpoint_path: "ARF_sunflower"
+all_model_checkpoint_paths: "ARF_sunflower"

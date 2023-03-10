@@ -89,7 +89,7 @@ class SingleShot(tf.keras.Model):
         self.lstm_layers = num_layers if lstm_layers is None else lstm_layers
         self.dense_layers = num_layers if dense_layers is None else dense_layers
 
-        self.attention_layer = attention.MHAFS(heads=heads, key_dim=key_dim)
+        self.attention_layer = attention.MHAFS(heads=heads, key_dim=key_dim, kernel_regularizer=kernel_regularizer)
         self.lstm_layers = [tf.keras.layers.LSTM(self.lstm_units, return_sequences=True, kernel_regularizer=kernel_regularizer) for _ in range(self.lstm_layers)]
         self.final_lstm_layer = tf.keras.layers.LSTM(self.lstm_units, return_sequences=False, kernel_regularizer=kernel_regularizer)
         self.dense_layers = [tf.keras.layers.Dense(self.dense_units, activation='relu', kernel_regularizer=kernel_regularizer) for _ in range(self.dense_layers)]
@@ -119,8 +119,8 @@ class SingleShot(tf.keras.Model):
 
         return x
     
-    def get_attention_weights(self, input):
-        _, weights = self.attention_layer(input, return_weights=True)
+    def get_attention_weights(self, input, training=None):
+        _, weights = self.attention_layer(input, return_weights=True, training=training)
         return weights
 
 class AutoregressiveFeedback(tf.keras.Model):
@@ -195,8 +195,8 @@ class AutoregressiveFeedback(tf.keras.Model):
         x = self.drop(x)
         return x
     
-    def get_attention_weights(self, input):
-        _, weights = self.attention_layer(input, return_weights=True)
+    def get_attention_weights(self, input, training=None):
+        _, weights = self.attention_layer(input, return_weights=True, training=training)
         return weights
     
 
@@ -244,7 +244,7 @@ class EncoderDecoder(tf.keras.Model):
             x = self.drop(x)
         return x
 
-    def get_attention_weights(self, input):
-        _, weights = self.attention_layer(input, return_weights=True)
+    def get_attention_weights(self, input, training=None):
+        _, weights = self.attention_layer(input, return_weights=True, training=training)
         return weights
     

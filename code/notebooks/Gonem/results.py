@@ -3,11 +3,19 @@ import pandas as pd
 import numpy as np
 
 
-def monte_carlo_dropout(x, model, n_samples=10, postproc=None):
-    if postproc is None:
-        preds = [model(x, training=True) for _ in range(n_samples)]
-    else:
-        preds = [postproc(model(x, training=True)) for _ in range(n_samples)]
+def monte_carlo_dropout(x, model, n_samples=10, postproc=None, return_weight=False):
+    weights = []
+    preds = []
+    for i in range(n_samples):
+        weight = model.attention_layer(x, return_weights=True, training=True)[1]
+        pred = model(x, training=True)
+        if postproc is not None:
+            pred = postproc(pred)
+        preds.append(pred)
+        weights.append(weight)
+    
+    if return_weight:
+        return np.stack(preds), np.stack(weights)
     return np.stack(preds)
 
 

@@ -1,0 +1,2 @@
+model_checkpoint_path: "SS_wheat"
+all_model_checkpoint_paths: "SS_wheat"
