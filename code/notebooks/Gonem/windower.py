@@ -1,21 +1,7 @@
-
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
-
-import openpyxl
-import pathlib
-cwd = pathlib.Path.cwd()
-
-code_directory = cwd.parents[1]
-# code_directory = cwd / "code"
-
-# bas_directory = code_directory / "notebooks" / "Bas"
-# data_file = bas_directory / "df_filtered_maize_trade_oil_weather_futures.xlsx"
-# data_file
-
-# df = pd.read_excel(data_file, header=[0, 1], index_col=0)
 
 class WindowGenerator():
     def __init__(self, input_width, label_width, shift, data, train_begin=0, train_end=.7, val_begin=None, val_end=None,
