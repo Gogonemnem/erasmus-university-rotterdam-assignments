@@ -1,0 +1,71 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+
+\usepackage{graphicx}
+\graphicspath{{report/figures}}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,siunitx,booktabs,caption}
+\usepackage{array}
+\usepackage[flushleft]{threeparttable}
+\usepackage{float}
+\usepackage{amsfonts}
+\usepackage[singlelinecheck=false]{caption}
+\usepackage[style=apa,backend=biber]{biblatex} 
+\bibliography{report/references.bib}
+\usepackage{appendix}
+\usepackage{subfig}
+\usepackage{wrapfig}
+\usepackage{dcolumn}
+\newcolumntype{d}[1]{D{.}{.}{#1}}  % define "d" column type
+\newcommand\mc[1]{\multicolumn{1}{r}{#1}} % handy shortcut macro
+
+
+\begin{document}
+\begin{titlepage} 
+    \newcommand{\HRule}{\rule{\linewidth}{0.5mm}} 
+    \center
+    \textsc{\LARGE Erasmus University Rotterdam}                    \\ [0.5cm] 
+    \includegraphics[width=0.75\textwidth]{ErasmusUniversiteit.png} \\
+    \textsc{\Large Assignment: Introductory Seminar Econometrics}   \\
+    \HRule                        \\ [0.5cm]
+    {\LARGE\bfseries {Title}}     \\ [0.2cm]
+    \HRule                        \\ [0.5cm]
+    {\large\textit{Authors}}      \\ [0.5cm]
+    Liza  \textsc{Mints} (475146) \\ [0.5cm]
+    Gonem \textsc{Lau}   (500202) \\ [0.5cm]
+    FName \textsc{SName} (xxxxxx) \\ [0.5cm]
+    FName \textsc{Sname} (xxxxxx) \\ [0.5cm]
+    {\today}                      \\ [0.5cm]
+    \begin{abstract} % 100-500 words
+        \input{report/chapters/0 Abstract}
+    \end{abstract} 
+\end{titlepage}
+
+\section{Introduction} \label{sec:introduction}
+\input{report/chapters/1 Introduction}
+
+\section{Data} \label{sec:data}
+\input{report/chapters/2 Data}
+
+\section{Methodology} \label{sec:methodology}
+\input{report/chapters/3 Methodology}
+
+%\subsection{Literature Review}\label{ssec:results}
+%\input{report/chapters/3.1 Literature Review} \label{ssec:literature}
+
+\section{Results}\label{sec:results}
+\input{report/chapters/4 Findings}
+
+\section{Limitations}\label{sec:Limitations}
+\input{report/chapters/5 Limitations}
+
+\section{Conclusions}\label{sec:conclusion}
+\input{report/chapters/6 Conclusion and Discussion}
+
+\parencite{einstein_can_1935}
+\newpage
+\printbibliography
+\appendix
+\input{report/chapters/99 Appendix}
+\end{document}

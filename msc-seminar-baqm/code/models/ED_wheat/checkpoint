@@ -1,0 +1,2 @@
+model_checkpoint_path: "ED_wheat"
+all_model_checkpoint_paths: "ED_wheat"
