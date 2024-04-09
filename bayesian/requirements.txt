@@ -1,0 +1,8 @@
+ipykernel
+pandas
+xlrd
+scipy
+tabulate
+matplotlib
+statsmodels
+pdfrw
